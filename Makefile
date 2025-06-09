@@ -1,7 +1,16 @@
-all: kilo
+BIN=kilo
+PREFIX=$(HOME)/local
 
-kilo: kilo.c
-	$(CC) -o kilo kilo.c -Wall -W -pedantic -std=c99
+all: $(BIN)
+
+$(BIN): kilo.c
+	$(CC) -o $(BIN) kilo.c -Wall -Wextra -std=c99 -O1 -flto
 
 clean:
-	rm kilo
+	rm $(BIN)
+
+install:
+	cp $(BIN) $(PREFIX)/bin/
+
+uninstall:
+	rm $(PREFIX)/bin/$(BIN)

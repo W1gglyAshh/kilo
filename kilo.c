@@ -63,7 +63,7 @@ void enableAltScrBuf(void)
         write(STDOUT_FILENO, "\x1b[?1049l", sizeof("\x1b[?1049l"));
 }
 
-void disable AltScrBuf(void)
+void disableAltScrBuf(void)
 {
         write(STDOUT_FILENO, "\x1b[?1049l", sizeof("\x1b[?1049l"));
 }

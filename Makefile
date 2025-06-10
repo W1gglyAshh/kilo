@@ -1,5 +1,5 @@
 BIN=kilo
-PREFIX=$(HOME)/local
+PREFIX=$(HOME)/.local
 
 all: $(BIN)
 

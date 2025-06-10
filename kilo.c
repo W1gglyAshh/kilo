@@ -57,7 +57,7 @@
 #include <time.h>
 #include <unistd.h>
 
-/* Routines added by W1gglyAshh ============================================ */
+/* Routines added by W1gglyAshh === */
 void enableAltScrBuf(void)
 {
         write(STDOUT_FILENO, "\x1b[?1049l", sizeof("\x1b[?1049l"));
@@ -67,7 +67,7 @@ void disableAltScrBuf(void)
 {
         write(STDOUT_FILENO, "\x1b[?1049l", sizeof("\x1b[?1049l"));
 }
-/* ========================================================================= */
+/* ================================ */
 
 /* Syntax highlight types */
 #define HL_NORMAL 0
@@ -228,13 +228,11 @@ void disableRawMode(int fd)
 /* Called at exit to avoid remaining in raw mode. */
 void editorAtExit(void)
 {
-        disableRawMode(STDIN_FILENO);
-
-        /* Modifications by W1gglyAshh =========================================
-         */
+        /* Modifications by W1gglyAshh === */
         disableAltScrBuf();
-        /* =====================================================================
-         */
+        /* =============================== */
+
+        disableRawMode(STDIN_FILENO);
 }
 
 /* Raw mode: 1960 magic shit. */
@@ -246,7 +244,7 @@ int enableRawMode(int fd)
                 return 0; /* Already enabled. */
         if (!isatty(STDIN_FILENO))
                 goto fatal;
-        atexit(editorAtExit);
+        /* atexit(editorAtExit); */
         if (tcgetattr(fd, &orig_termios) == -1)
                 goto fatal;
 
@@ -989,6 +987,10 @@ int editorOpen(char* filename)
                         perror("Opening file");
                         exit(1);
                 }
+                /* Modifications by W1gglyAshh === */
+                editorInsertNewline();
+                E.dirty = E.cy = 0;
+                /* =============================== */
                 return 1;
         }
 
@@ -1004,6 +1006,13 @@ int editorOpen(char* filename)
         }
         free(line);
         fclose(fp);
+        /* Modifications by W1gglyAshh === */
+        if (E.numrows == 0)
+        {
+                editorInsertNewline();
+                E.dirty = E.cy = 0;
+        }
+        /* =============================== */
         E.dirty = 0;
         return 0;
 }
@@ -1027,14 +1036,18 @@ int editorSave(void)
         close(fd);
         free(buf);
         E.dirty = 0;
-        editorSetStatusMessage("%d bytes written on disk", len);
+        /* Modifications by W1gglyAshh === */
+        editorSetStatusMessage("\"%s\" %dL, %dB written", E.filename, E.numrows, len);
+        /* =============================== */
         return 0;
 
 writeerr:
         free(buf);
         if (fd != -1)
                 close(fd);
-        editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
+        /* Modifications by W1gglyAshh === */
+        editorSetStatusMessage("Error writing \"%s\": %s", E.filename, strerror(errno));
+        /* =============================== */
         return 1;
 }
 
@@ -1088,16 +1101,19 @@ void editorRefreshScreen(void)
                         if (E.numrows == 0 && y == E.screenrows / 3)
                         {
                                 char welcome[80];
-                                int welcomelen = snprintf(
-                                    welcome, sizeof(welcome),
-                                    "Kilo editor -- verison %s\x1b[0K\r\n",
-                                    KILO_VERSION);
+                                /* Modifications by W1gglyAshh === */
+                                int welcomelen =
+                                    snprintf(welcome, sizeof(welcome),
+                                             "\x1b[1;30mKilo editor -- verison "
+                                             "%s\x1b[0m\x1b[0K\r\n",
+                                             KILO_VERSION);
                                 int padding = (E.screencols - welcomelen) / 2;
                                 if (padding)
                                 {
-                                        abAppend(&ab, "~", 1);
+                                        abAppend(&ab, "\x1b[0;90m~\x1b[0m", 1);
                                         padding--;
                                 }
+                                /* =============================== */
                                 while (padding--)
                                         abAppend(&ab, " ", 1);
                                 abAppend(&ab, welcome, welcomelen);
@@ -1167,10 +1183,11 @@ void editorRefreshScreen(void)
         abAppend(&ab, "\x1b[0K", 4);
         abAppend(&ab, "\x1b[7m", 4);
         char status[80], rstatus[80];
-        int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
-                           E.filename, E.numrows, E.dirty ? "(modified)" : "");
-        int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d",
-                            E.rowoff + E.cy + 1, E.numrows);
+        /* Modifications by W1gglyAshh === */
+        int len = snprintf(status, sizeof(status), "%.20s%s", E.filename, E.dirty ? "[+]" : "");
+        const double percent = (E.cy + 1) / E.numrows * 100;
+        int rlen = snprintf(rstatus, sizeof(rstatus), "%.0f", percent);
+        /* =============================== */
         if (len > E.screencols)
                 len = E.screencols;
         abAppend(&ab, status, len);
@@ -1439,7 +1456,7 @@ void editorMoveCursor(int key)
                 }
                 break;
         case ARROW_DOWN:
-                if (filerow < E.numrows)
+                if (filerow + 1 < E.numrows)
                 {
                         if (E.cy == E.screenrows - 1)
                         {
@@ -1506,8 +1523,13 @@ void editorProcessKeypress(int fd)
         case CTRL_F:
                 editorFind(fd);
                 break;
+        /* Modifications by W1gglyAshh === */
+        case CTRL_H: /* Ctrl-h */
+                editorSetStatusMessage(
+                    "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+                break;
+        /* =============================== */
         case BACKSPACE: /* Backspace */
-        case CTRL_H:    /* Ctrl-h */
         case DEL_KEY:
                 editorDelChar();
                 break;
@@ -1573,6 +1595,11 @@ void handleSigWinCh(int unused __attribute__((unused)))
 
 void initEditor(void)
 {
+        /* Modifications by W1gglyAshh === */
+        enableRawMode(STDIN_FILENO);
+        enableAltScrBuf();
+        atexit(editorAtExit);
+        /* =============================== */
         E.cx = 0;
         E.cy = 0;
         E.rowoff = 0;
@@ -1588,25 +1615,19 @@ void initEditor(void)
 
 int main(int argc, char** argv)
 {
-        if (argc != 2)
-        {
-                fprintf(stderr, "Usage: kilo <filename>\n");
-                exit(1);
-        }
-
         initEditor();
-        editorSelectSyntaxHighlight(argv[1]);
-        editorOpen(argv[1]);
-        enableRawMode(STDIN_FILENO);
+        /* if (argc != 2)                                       */
+        /* {                                                    */
+        /*         fprintf(stderr, "Usage: kilo <filename>\n"); */
+        /*         exit(1);                                     */
+        /* }                                                    */
+        /* Modifications by W1gglyAshh === */
+        editorSelectSyntaxHighlight(argc > 1 ? argv[1] : "Untitled");
+        editorOpen(argc > 1 ? argv[1] : "Untitled");
+        /* =============================== */
 
-        /* Modifications by W1gglyAshh =========================================
-         */
-        enableAltScrBuf();
-        /* =====================================================================
-         */
-
-        editorSetStatusMessage(
-            "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+        /* editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F
+         * = find"); */
         while (1)
         {
                 editorRefreshScreen();

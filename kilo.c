@@ -28,7 +28,7 @@
  * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * (INCLUDING NEGLIGENCEOR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
@@ -1100,30 +1100,7 @@ void editorRefreshScreen(void)
 
                 if (filerow >= E.numrows)
                 {
-                        if (E.numrows == 0 && y == E.screenrows / 3)
-                        {
-                                char welcome[80];
-                                /* Modifications by W1gglyAshh === */
-                                int welcomelen =
-                                    snprintf(welcome, sizeof(welcome),
-                                             "\x1b[1;30mKilo editor -- verison "
-                                             "%s\x1b[0m\x1b[0K\r\n",
-                                             KILO_VERSION);
-                                int padding = (E.screencols - welcomelen) / 2;
-                                if (padding)
-                                {
-                                        abAppend(&ab, "\x1b[0;90m~\x1b[0m", 1);
-                                        padding--;
-                                }
-                                /* =============================== */
-                                while (padding--)
-                                        abAppend(&ab, " ", 1);
-                                abAppend(&ab, welcome, welcomelen);
-                        }
-                        else
-                        {
-                                abAppend(&ab, "~\x1b[0K\r\n", 7);
-                        }
+                        abAppend(&ab, "\x1b[0;90m~\x1b[0m\x1b[0K\r\n", 18);
                         continue;
                 }
 
@@ -1190,7 +1167,7 @@ void editorRefreshScreen(void)
                            E.dirty ? "[+]" : "");
         const double percent =
             E.numrows ? ((double)(E.rowoff + E.cy + 1) / E.numrows * 100) : 100;
-        int rlen = snprintf(rstatus, sizeof(rstatus), "%.0f", percent);
+        int rlen = snprintf(rstatus, sizeof(rstatus), "%.0f%%", percent);
         /* =============================== */
         if (len > E.screencols)
                 len = E.screencols;
@@ -1491,49 +1468,39 @@ void editorMoveCursor(int key)
 
 /* Process events arriving from the standard input, which is, the user
  * is typing stuff on the terminal. */
-#define KILO_QUIT_TIMES 3
 void editorProcessKeypress(int fd)
 {
-        /* When the file is modified, requires Ctrl-q to be pressed N times
-         * before actually quitting. */
-        static int quit_times = KILO_QUIT_TIMES;
-
         int c = editorReadKey(fd);
         switch (c)
         {
-        case ENTER: /* Enter */
+        case ENTER:
                 editorInsertNewline();
                 break;
-        case CTRL_C: /* Ctrl-c */
-                /* We ignore ctrl-c, it can't be so simple to lose the changes
-                 * to the edited file. */
-                break;
-        case CTRL_Q: /* Ctrl-q */
-                /* Quit if the file was already saved. */
-                if (E.dirty && quit_times)
-                {
-                        editorSetStatusMessage(
-                            "WARNING!!! File has unsaved changes. "
-                            "Press Ctrl-Q %d more times to quit.",
-                            quit_times);
-                        quit_times--;
-                        return;
-                }
+        case CTRL_C:
+                /* Modifications by W1gglyAshh === */
                 exit(0);
                 break;
-        case CTRL_S: /* Ctrl-s */
+        case CTRL_Q:
+                if (E.dirty)
+                        editorSetStatusMessage("No write since last change "
+                                               "(Use C-c to force quit)");
+                else
+                        exit(0);
+                break;
+        /* =============================== */
+        case CTRL_S:
                 editorSave();
                 break;
         case CTRL_F:
                 editorFind(fd);
                 break;
         /* Modifications by W1gglyAshh === */
-        case CTRL_H: /* Ctrl-h */
+        case CTRL_H:
                 editorSetStatusMessage(
-                    "HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
+                    "Help: C-s = save | C-q = quit | C-f = find");
                 break;
         /* =============================== */
-        case BACKSPACE: /* Backspace */
+        case BACKSPACE:
         case DEL_KEY:
                 editorDelChar();
                 break;
@@ -1550,25 +1517,20 @@ void editorProcessKeypress(int fd)
                                                               : ARROW_DOWN);
                 }
                 break;
-
         case ARROW_UP:
         case ARROW_DOWN:
         case ARROW_LEFT:
         case ARROW_RIGHT:
                 editorMoveCursor(c);
                 break;
-        case CTRL_L: /* ctrl+l, clear screen */
-                /* Just refresht the line as side effect. */
+        case CTRL_L:
                 break;
         case ESC:
-                /* Nothing to do for ESC in this mode. */
                 break;
         default:
                 editorInsertChar(c);
                 break;
         }
-
-        quit_times = KILO_QUIT_TIMES; /* Reset it to the original value. */
 }
 
 int editorFileWasModified(void)
@@ -1620,18 +1582,11 @@ void initEditor(void)
 int main(int argc, char** argv)
 {
         initEditor();
-        /* if (argc != 2)                                       */
-        /* {                                                    */
-        /*         fprintf(stderr, "Usage: kilo <filename>\n"); */
-        /*         exit(1);                                     */
-        /* }                                                    */
         /* Modifications by W1gglyAshh === */
         editorSelectSyntaxHighlight(argc > 1 ? argv[1] : "Untitled");
         editorOpen(argc > 1 ? argv[1] : "Untitled");
         /* =============================== */
 
-        /* editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F
-         * = find"); */
         while (1)
         {
                 editorRefreshScreen();

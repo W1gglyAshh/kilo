@@ -35,7 +35,7 @@
  * Modified by W1gglyAshh, 2025.
  */
 
-#define KILO_VERSION "0.0.1"
+#define KILO_VERSION "0.1.0"
 
 #ifdef __linux__
 #        define _POSIX_C_SOURCE 200809L
@@ -1037,7 +1037,8 @@ int editorSave(void)
         free(buf);
         E.dirty = 0;
         /* Modifications by W1gglyAshh === */
-        editorSetStatusMessage("\"%s\" %dL, %dB written", E.filename, E.numrows, len);
+        editorSetStatusMessage("\"%s\" %dL, %dB written", E.filename, E.numrows,
+                               len);
         /* =============================== */
         return 0;
 
@@ -1046,7 +1047,8 @@ writeerr:
         if (fd != -1)
                 close(fd);
         /* Modifications by W1gglyAshh === */
-        editorSetStatusMessage("Error writing \"%s\": %s", E.filename, strerror(errno));
+        editorSetStatusMessage("Error writing \"%s\": %s", E.filename,
+                               strerror(errno));
         /* =============================== */
         return 1;
 }
@@ -1184,8 +1186,10 @@ void editorRefreshScreen(void)
         abAppend(&ab, "\x1b[7m", 4);
         char status[80], rstatus[80];
         /* Modifications by W1gglyAshh === */
-        int len = snprintf(status, sizeof(status), "%.20s%s", E.filename, E.dirty ? "[+]" : "");
-        const double percent = (E.cy + 1) / E.numrows * 100;
+        int len = snprintf(status, sizeof(status), "%.20s %s", E.filename,
+                           E.dirty ? "[+]" : "");
+        const double percent =
+            E.numrows ? ((double)(E.rowoff + E.cy + 1) / E.numrows * 100) : 100;
         int rlen = snprintf(rstatus, sizeof(rstatus), "%.0f", percent);
         /* =============================== */
         if (len > E.screencols)
